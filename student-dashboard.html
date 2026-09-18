@@ -856,5 +856,635 @@
                 padding: 20px;
             }
 
-            .welcome-card h3 {
-                fo
+            font-size: 22px;
+margin: 0 0 8px;
+}
+
+.welcome-card p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.dashboard-card {
+    padding: 20px;
+}
+
+.dashboard-card h3 {
+    font-size: 18px;
+}
+
+.profile-grid {
+    grid-template-columns: 1fr;
+}
+
+.profile-field {
+    padding: 12px;
+}
+
+.results-table {
+    display: block;
+    overflow-x: auto;
+}
+
+.results-table table {
+    min-width: 600px;
+}
+
+.stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.dashboard-actions {
+    grid-template-columns: 1fr;
+}
+
+.card-grid {
+    grid-template-columns: 1fr;
+}
+
+.event-card,
+.notice-card,
+.achievement-card {
+    padding: 18px;
+}
+
+.dashboard-footer {
+    padding-bottom: 90px;
+}
+
+}
+
+/* =========================================
+   SMALL MOBILE
+========================================= */
+
+@media (max-width: 480px) {
+
+    .dashboard-main {
+        padding: 20px 12px 100px;
+    }
+
+    .page-heading h2 {
+        font-size: 21px;
+    }
+
+    .welcome-card {
+        padding: 18px;
+    }
+
+    .welcome-card h3 {
+        font-size: 20px;
+    }
+
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-grid {
+        gap: 10px;
+    }
+
+    .dashboard-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+}
+
+/* =========================================
+   ACCESSIBILITY
+========================================= */
+
+button:focus-visible,
+a:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.35);
+    outline-offset: 3px;
+}
+
+/* =========================================
+   REDUCED MOTION
+========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+}
+
+</style>
+
+<!-- =========================================
+     SUPABASE
+========================================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+
+<script>
+/* =========================================
+   STUDENT DASHBOARD - SUPABASE
+========================================= */
+
+async function loadStudentDashboard() {
+
+    try {
+
+        /* Check login session */
+
+        const {
+            data: {
+                session
+            },
+            error: sessionError
+        } = await supabaseClient.auth.getSession();
+
+
+        if (sessionError) {
+
+            console.error(sessionError);
+
+            window.location.href =
+                "student-login.html";
+
+            return;
+
+        }
+
+
+        /* No logged-in student */
+
+        if (!session) {
+
+            window.location.href =
+                "student-login.html";
+
+            return;
+
+        }
+
+
+        /* Get logged-in student's profile */
+
+        const {
+            data: student,
+            error
+        } = await supabaseClient
+            .from("students")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+
+
+        if (error || !student) {
+
+            console.error(
+                "Student profile error:",
+                error
+            );
+
+            alert(
+                "Student profile could not be found."
+            );
+
+            await supabaseClient.auth.signOut();
+
+            window.location.href =
+                "student-login.html";
+
+            return;
+
+        }
+
+
+        /* =====================================
+           DISPLAY STUDENT NAME
+        ===================================== */
+
+        const miniName =
+            document.querySelector(
+                ".student-mini-name"
+            );
+
+        if (miniName) {
+            miniName.textContent =
+                student.full_name;
+        }
+
+
+        /* =====================================
+           DISPLAY CLASS
+        ===================================== */
+
+        const miniClass =
+            document.querySelector(
+                ".student-mini-class"
+            );
+
+        if (miniClass) {
+
+            miniClass.textContent =
+                `${student.class_name || ""} • ${student.section || ""}`;
+
+        }
+
+
+        /* =====================================
+           WELCOME MESSAGE
+        ===================================== */
+
+        const welcomeHeading =
+            document.querySelector(
+                ".welcome-card h3"
+            );
+
+        if (welcomeHeading) {
+
+            welcomeHeading.textContent =
+                `Welcome, ${student.full_name}! 👋`;
+
+        }
+
+
+        /* =====================================
+           PROFILE DETAILS
+        ===================================== */
+
+        const profileFields =
+            document.querySelectorAll(
+                ".profile-details .profile-field strong"
+            );
+
+
+        if (profileFields.length >= 8) {
+
+            profileFields[0].textContent =
+                student.full_name || "—";
+
+            profileFields[1].textContent =
+                student.roll_number || "—";
+
+            profileFields[2].textContent =
+                student.class_name || "—";
+
+            profileFields[3].textContent =
+                student.section || "—";
+
+            profileFields[4].textContent =
+                student.date_of_birth
+                    ? formatDate(student.date_of_birth)
+                    : "—";
+
+            profileFields[5].textContent =
+                student.academic_year || "—";
+
+            profileFields[6].textContent =
+                student.parent_name || "—";
+
+            profileFields[7].textContent =
+                "Active Student";
+
+        }
+
+
+        /* =====================================
+           STUDENT ID IN QUICK INFO
+        ===================================== */
+
+        const quickFields =
+            document.querySelectorAll(
+                ".dashboard-main .profile-field strong"
+            );
+
+        if (quickFields.length > 0) {
+
+            quickFields[
+                quickFields.length - 2
+            ].textContent =
+                student.roll_number || "—";
+
+        }
+
+
+        /* =====================================
+           LOAD RESULTS
+        ===================================== */
+
+        await loadResults(session.user.id);
+
+
+        /* =====================================
+           LOAD ATTENDANCE
+        ===================================== */
+
+        await loadAttendance(session.user.id);
+
+
+    } catch (error) {
+
+        console.error(
+            "Dashboard error:",
+            error
+        );
+
+        window.location.href =
+            "student-login.html";
+
+    }
+
+}
+
+
+/* =========================================
+   RESULTS
+========================================= */
+
+async function loadResults(studentId) {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("results")
+        .select("*")
+        .eq("student_id", studentId)
+        .order("created_at", {
+            ascending: false
+        });
+
+
+    if (error) {
+
+        console.error(
+            "Results error:",
+            error
+        );
+
+        return;
+
+    }
+
+
+    console.log(
+        "Student results:",
+        data
+    );
+
+}
+
+
+/* =========================================
+   ATTENDANCE
+========================================= */
+
+async function loadAttendance(studentId) {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("attendance")
+        .select("*")
+        .eq("student_id", studentId)
+        .order("attendance_date", {
+            ascending: false
+        });
+
+
+    if (error) {
+
+        console.error(
+            "Attendance error:",
+            error
+        );
+
+        return;
+
+    }
+
+
+    console.log(
+        "Student attendance:",
+        data
+    );
+
+}
+
+
+/* =========================================
+   DATE FORMAT
+========================================= */
+
+function formatDate(dateString) {
+
+    const date =
+        new Date(dateString);
+
+
+    return date.toLocaleDateString(
+        "en-IN",
+        {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+        }
+    );
+
+}
+
+
+/* =========================================
+   SECTION NAVIGATION
+========================================= */
+
+function showSection(sectionName) {
+
+    const sections =
+        document.querySelectorAll(
+            ".dashboard-section"
+        );
+
+
+    sections.forEach(function (section) {
+
+        section.classList.remove(
+            "active"
+        );
+
+    });
+
+
+    const selectedSection =
+        document.getElementById(
+            sectionName
+        );
+
+
+    if (selectedSection) {
+
+        selectedSection.classList.add(
+            "active"
+        );
+
+    }
+
+
+    const sidebarLinks =
+        document.querySelectorAll(
+            ".sidebar-link[data-section]"
+        );
+
+
+    sidebarLinks.forEach(function (link) {
+
+        link.classList.remove(
+            "active"
+        );
+
+
+        if (
+            link.dataset.section ===
+            sectionName
+        ) {
+
+            link.classList.add(
+                "active"
+            );
+
+        }
+
+    });
+
+
+    const mobileLinks =
+        document.querySelectorAll(
+            ".mobile-nav-button[data-section]"
+        );
+
+
+    mobileLinks.forEach(function (link) {
+
+        link.classList.remove(
+            "active"
+        );
+
+
+        if (
+            link.dataset.section ===
+            sectionName
+        ) {
+
+            link.classList.add(
+                "active"
+            );
+
+        }
+
+    });
+
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+}
+
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+async function logoutStudent() {
+
+    const confirmed =
+        confirm(
+            "Are you sure you want to logout?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    const {
+        error
+    } = await supabaseClient.auth.signOut();
+
+
+    if (error) {
+
+        console.error(
+            "Logout error:",
+            error
+        );
+
+        alert(
+            "Unable to logout. Please try again."
+        );
+
+        return;
+
+    }
+
+
+    window.location.href =
+        "student-login.html";
+
+}
+
+
+/* =========================================
+   CURRENT DATE
+========================================= */
+
+function updateDate() {
+
+    const dateElement =
+        document.getElementById(
+            "currentDate"
+        );
+
+
+    if (!dateElement) {
+        return;
+    }
+
+
+    const today =
+        new Date();
+
+
+    dateElement.textContent =
+        today.toLocaleDateString(
+            "en-IN",
+            {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            }
+        );
+
+}
+
+
+updateDate();
+
+
+/* =========================================
+   START DASHBOARD
+========================================= */
+
+loadStudentDashboard();
+
+</script>
+
+</body>
+</html>
