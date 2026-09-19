@@ -627,260 +627,256 @@
 <script src="supabase-config.js"></script>
     <script>
 
-    /* =========================================
-       PASSWORD SHOW / HIDE
-    ========================================= */
 
-    const passwordInput =
-        document.getElementById("password");
+const loginForm = document.getElementById("loginForm");
+const rollNumberInput = document.getElementById("rollNumber");
+const passwordInput = document.getElementById("password");
+const loginButton = document.getElementById("loginButton");
+const loginMessage = document.getElementById("loginMessage");
+const forgotPassword = document.getElementById("forgotPassword");
 
-    const togglePassword =
-        document.getElementById("togglePassword");
 
-    togglePassword.addEventListener(
-        "click",
-        function () {
+/* =========================================
+   SHOW MESSAGE
+========================================= */
 
-            if (passwordInput.type === "password") {
+function showMessage(message, type) {
 
-                passwordInput.type = "text";
+    if (!loginMessage) return;
 
-                togglePassword.textContent = "🙈";
+    loginMessage.textContent = message;
 
-                togglePassword.setAttribute(
-                    "aria-label",
-                    "Hide password"
-                );
+    loginMessage.className = "login-message " + type;
+}
 
-            } else {
 
-                passwordInput.type = "password";
+/* =========================================
+   STUDENT LOGIN
+========================================= */
 
-                togglePassword.textContent = "👁️";
+if (loginForm) {
 
-                togglePassword.setAttribute(
-                    "aria-label",
-                    "Show password"
-                );
+    loginForm.addEventListener("submit", async function(event) {
 
-            }
+        event.preventDefault();
 
+        const rollNumber =
+            rollNumberInput.value.trim();
+
+        const password =
+            passwordInput.value;
+
+        if (!rollNumber || !password) {
+
+            showMessage(
+                "Please enter your roll number and password.",
+                "error"
+            );
+
+            return;
         }
-    );
 
 
-    /* =========================================
-       LOGIN FORM
-    ========================================= */
+        /* Disable button */
 
-    const loginForm =
-        document.getElementById("studentLoginForm");
+        if (loginButton) {
 
-    const loginMessage =
-        document.getElementById("loginMessage");
+            loginButton.disabled = true;
 
-    const loginButton =
-        document.getElementById("loginButton");
+            loginButton.textContent =
+                "Signing in...";
+        }
 
 
-    loginForm.addEventListener(
-        "submit",
-        async function (event) {
+        try {
 
-            event.preventDefault();
+            /*
+             * Convert roll number into
+             * internal student email
+             */
 
-            const rollNumber =
-                document
-                    .getElementById("rollNumber")
-                    .value
-                    .trim()
-                    .toUpperCase();
-
-            const password =
-                document
-                    .getElementById("password")
-                    .value
-                    .trim();
+            const loginEmail =
+                rollNumber.toLowerCase()
+                + "@student.zphs-chavitipalem.local";
 
 
-            if (!rollNumber || !password) {
+            console.log(
+                "Trying login:",
+                loginEmail
+            );
+
+
+            /*
+             * Supabase login
+             */
+
+            const { data, error } =
+                await supabaseClient.auth.signInWithPassword({
+
+                    email: loginEmail,
+
+                    password: password
+
+                });
+
+
+            if (error) {
+
+                console.error(
+                    "Login error:",
+                    error
+                );
+
 
                 showMessage(
-                    "Please enter your roll number and password.",
+                    "Invalid roll number or password.",
                     "error"
                 );
+
+
+                if (loginButton) {
+
+                    loginButton.disabled = false;
+
+                    loginButton.textContent =
+                        "Sign In";
+                }
 
                 return;
             }
 
 
-            loginButton.textContent =
-                "Signing in...";
+            /*
+             * Login successful
+             */
 
-            loginButton.disabled = true;
-
-
-            try {
-
-                /*
-                 * Each student account will use a
-                 * private internal email format.
-                 *
-                 * Students only enter their roll number.
-                 */
-
-                const loginEmail =
-                    rollNumber.toLowerCase()
-                    + "@student.zphs-chavitipalem.local";
+            console.log(
+                "Login successful:",
+                data
+            );
 
 
-                const { data, error } =
-                    await supabaseClient.auth.signInWithPassword({
-
-                        email: loginEmail,
-
-                        password: password
-
-                    });
+            showMessage(
+                "Login successful. Opening dashboard...",
+                "success"
+            );
 
 
-                if (error) {
+            /*
+             * Small delay so the user
+             * can see success message
+             */
 
-                    console.error(
-                        "Login error:",
-                        error
-                    );
+            setTimeout(function() {
 
-                    showMessage(
-                        "Invalid roll number or password.",
-                        "error"
-                    );
+                window.location.href =
+                    "student-dashboard.html";
 
-                    loginButton.textContent =
-                        "Sign In";
-
-                    loginButton.disabled = false;
-
-                    return;
-                }
+            }, 500);
 
 
-                if (!data.session) {
+        } catch (error) {
 
-                    showMessage(
-                        "Unable to create a login session. Please try again.",
-                        "error"
-                    );
-
-                    loginButton.textContent =
-                        "Sign In";
-
-                    loginButton.disabled = false;
-
-                    return;
-                }
+            console.error(
+                "Unexpected login error:",
+                error
+            );
 
 
-                showMessage(
-                    "Login successful. Opening your dashboard...",
-                    "success"
-                );
+            showMessage(
+                "Something went wrong. Please try again.",
+                "error"
+            );
 
 
-                setTimeout(function () {
-
-                    window.location.href =
-                        "student-dashboard.html";
-
-                }, 700);
-
-
-            } catch (error) {
-
-                console.error(
-                    "Unexpected login error:",
-                    error
-                );
-
-                showMessage(
-                    "Something went wrong. Please try again.",
-                    "error"
-                );
-
-                loginButton.textContent =
-                    "Sign In";
+            if (loginButton) {
 
                 loginButton.disabled = false;
 
+                loginButton.textContent =
+                    "Sign In";
             }
+
+        }
+
+    });
+
+}
+
+
+/* =========================================
+   FORGOT PASSWORD
+========================================= */
+
+if (forgotPassword) {
+
+    forgotPassword.addEventListener(
+        "click",
+        function(event) {
+
+            event.preventDefault();
+
+            showMessage(
+                "Please contact your class teacher or school administrator to reset your password.",
+                "error"
+            );
 
         }
     );
 
-
-    /* =========================================
-       MESSAGE
-    ========================================= */
-
-    function showMessage(message, type) {
-
-        loginMessage.textContent = message;
-
-        loginMessage.className =
-            "login-message " + type;
-
-    }
+}
 
 
-    /* =========================================
-       FORGOT PASSWORD
-    ========================================= */
+/* =========================================
+   CURRENT YEAR
+========================================= */
 
-    document
-        .getElementById("forgotPassword")
-        .addEventListener(
-            "click",
-            function (event) {
+const loginYear =
+    document.getElementById("loginYear");
 
-                event.preventDefault();
+if (loginYear) {
 
-                showMessage(
-                    "Please contact your class teacher or school administrator to reset your password.",
-                    "error"
-                );
-
-            }
-        );
-
-
-    /* =========================================
-       CURRENT YEAR
-    ========================================= */
-
-    document
-        .getElementById("loginYear")
-        .textContent =
+    loginYear.textContent =
         new Date().getFullYear();
 
+}
 
-    /* =========================================
-       CHECK EXISTING SESSION
-    ========================================= */
 
-    async function checkExistingSession() {
+/* =========================================
+   CHECK EXISTING SESSION
+========================================= */
+
+async function checkExistingSession() {
+
+    try {
 
         const {
-            data: {
-                session
-            }
-        } = await supabaseClient.auth.getSession();
+            data,
+            error
+        } =
+            await supabaseClient.auth.getSession();
 
 
-        if (session) {
+        if (error) {
+
+            console.error(
+                "Session error:",
+                error
+            );
+
+            return;
+        }
+
+
+        if (data && data.session) {
+
+            console.log(
+                "Existing student session found."
+            );
+
 
             /*
-             * A student is already logged in.
-             * Send them directly to dashboard.
+             * Student is already logged in
              */
 
             window.location.href =
@@ -888,10 +884,23 @@
 
         }
 
+    } catch (error) {
+
+        console.error(
+            "Session check failed:",
+            error
+        );
+
     }
 
+}
 
-    checkExistingSession();
+
+/* =========================================
+   START
+========================================= */
+
+checkExistingSession();
 
     </script>
 
