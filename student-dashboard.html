@@ -856,635 +856,932 @@
                 padding: 20px;
             }
 
-            font-size: 22px;
-margin: 0 0 8px;
-}
-
-.welcome-card p {
-    margin: 0;
-    font-size: 14px;
-}
-
-.dashboard-card {
-    padding: 20px;
-}
-
-.dashboard-card h3 {
-    font-size: 18px;
-}
-
-.profile-grid {
-    grid-template-columns: 1fr;
-}
-
-.profile-field {
-    padding: 12px;
-}
-
-.results-table {
-    display: block;
-    overflow-x: auto;
-}
-
-.results-table table {
-    min-width: 600px;
-}
-
-.stat-grid {
-    grid-template-columns: repeat(2, 1fr);
-}
-
-.dashboard-actions {
-    grid-template-columns: 1fr;
-}
-
-.card-grid {
-    grid-template-columns: 1fr;
-}
-
-.event-card,
-.notice-card,
-.achievement-card {
-    padding: 18px;
-}
-
-.dashboard-footer {
-    padding-bottom: 90px;
-}
-
-}
-
-/* =========================================
-   SMALL MOBILE
-========================================= */
-
-@media (max-width: 480px) {
-
-    .dashboard-main {
-        padding: 20px 12px 100px;
-    }
-
-    .page-heading h2 {
-        font-size: 21px;
-    }
-
-    .welcome-card {
-        padding: 18px;
-    }
-
-    .welcome-card h3 {
-        font-size: 20px;
-    }
-
-    .stat-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .profile-grid {
-        gap: 10px;
-    }
-
-    .dashboard-card {
-        padding: 16px;
-        border-radius: 16px;
-    }
-
-}
-
-/* =========================================
-   ACCESSIBILITY
-========================================= */
-
-button:focus-visible,
-a:focus-visible {
-    outline: 3px solid rgba(37, 99, 235, 0.35);
-    outline-offset: 3px;
-}
-
-/* =========================================
-   REDUCED MOTION
-========================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        scroll-behavior: auto !important;
-        transition: none !important;
-        animation: none !important;
-    }
-
-}
-
-</style>
-
-<!-- =========================================
-     SUPABASE
-========================================= -->
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-
-<script>
-/* =========================================
-   STUDENT DASHBOARD - SUPABASE
-========================================= */
-
-async function loadStudentDashboard() {
-
-    try {
-
-        /* Check login session */
-
-        const {
-            data: {
-                session
-            },
-            error: sessionError
-        } = await supabaseClient.auth.getSession();
-
-
-        if (sessionError) {
-
-            console.error(sessionError);
-
-            window.location.href =
-                "student-login.html";
-
-            return;
-
-        }
-
-
-        /* No logged-in student */
-
-        if (!session) {
-
-            window.location.href =
-                "student-login.html";
-
-            return;
-
-        }
-
-
-        /* Get logged-in student's profile */
-
-        const {
-            data: student,
-            error
-        } = await supabaseClient
-            .from("students")
-            .select("*")
-            .eq("id", session.user.id)
-            .single();
-
-
-        if (error || !student) {
-
-            console.error(
-                "Student profile error:",
-                error
-            );
-
-            alert(
-                "Student profile could not be found."
-            );
-
-            await supabaseClient.auth.signOut();
-
-            window.location.href =
-                "student-login.html";
-
-            return;
-
-        }
-
-
-        /* =====================================
-           DISPLAY STUDENT NAME
-        ===================================== */
-
-        const miniName =
-            document.querySelector(
-                ".student-mini-name"
-            );
-
-        if (miniName) {
-            miniName.textContent =
-                student.full_name;
-        }
-
-
-        /* =====================================
-           DISPLAY CLASS
-        ===================================== */
-
-        const miniClass =
-            document.querySelector(
-                ".student-mini-class"
-            );
-
-        if (miniClass) {
-
-            miniClass.textContent =
-                `${student.class_name || ""} • ${student.section || ""}`;
-
-        }
-
-
-        /* =====================================
-           WELCOME MESSAGE
-        ===================================== */
-
-        const welcomeHeading =
-            document.querySelector(
-                ".welcome-card h3"
-            );
-
-        if (welcomeHeading) {
-
-            welcomeHeading.textContent =
-                `Welcome, ${student.full_name}! 👋`;
-
-        }
-
-
-        /* =====================================
-           PROFILE DETAILS
-        ===================================== */
-
-        const profileFields =
-            document.querySelectorAll(
-                ".profile-details .profile-field strong"
-            );
-
-
-        if (profileFields.length >= 8) {
-
-            profileFields[0].textContent =
-                student.full_name || "—";
-
-            profileFields[1].textContent =
-                student.roll_number || "—";
-
-            profileFields[2].textContent =
-                student.class_name || "—";
-
-            profileFields[3].textContent =
-                student.section || "—";
-
-            profileFields[4].textContent =
-                student.date_of_birth
-                    ? formatDate(student.date_of_birth)
-                    : "—";
-
-            profileFields[5].textContent =
-                student.academic_year || "—";
-
-            profileFields[6].textContent =
-                student.parent_name || "—";
-
-            profileFields[7].textContent =
-                "Active Student";
-
-        }
-
-
-        /* =====================================
-           STUDENT ID IN QUICK INFO
-        ===================================== */
-
-        const quickFields =
-            document.querySelectorAll(
-                ".dashboard-main .profile-field strong"
-            );
-
-        if (quickFields.length > 0) {
-
-            quickFields[
-                quickFields.length - 2
-            ].textContent =
-                student.roll_number || "—";
-
-        }
-
-
-        /* =====================================
-           LOAD RESULTS
-        ===================================== */
-
-        await loadResults(session.user.id);
-
-
-        /* =====================================
-           LOAD ATTENDANCE
-        ===================================== */
-
-        await loadAttendance(session.user.id);
-
-
-    } catch (error) {
-
-        console.error(
-            "Dashboard error:",
-            error
-        );
-
-        window.location.href =
-            "student-login.html";
-
-    }
-
-}
-
-
-/* =========================================
-   RESULTS
-========================================= */
-
-async function loadResults(studentId) {
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("results")
-        .select("*")
-        .eq("student_id", studentId)
-        .order("created_at", {
-            ascending: false
-        });
-
-
-    if (error) {
-
-        console.error(
-            "Results error:",
-            error
-        );
-
-        return;
-
-    }
-
-
-    console.log(
-        "Student results:",
-        data
-    );
-
-}
-
-
-/* =========================================
-   ATTENDANCE
-========================================= */
-
-async function loadAttendance(studentId) {
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("attendance")
-        .select("*")
-        .eq("student_id", studentId)
-        .order("attendance_date", {
-            ascending: false
-        });
-
-
-    if (error) {
-
-        console.error(
-            "Attendance error:",
-            error
-        );
-
-        return;
-
-    }
-
-
-    console.log(
-        "Student attendance:",
-        data
-    );
-
-}
-
-
-/* =========================================
-   DATE FORMAT
-========================================= */
-
-function formatDate(dateString) {
-
-    const date =
-        new Date(dateString);
-
-
-    return date.toLocaleDateString(
-        "en-IN",
-        {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-        }
-    );
-
-}
-
-
-/* =========================================
-   SECTION NAVIGATION
-========================================= */
-
-function showSection(sectionName) {
-
-    const sections =
-        document.querySelectorAll(
-            ".dashboard-section"
-        );
-
-
-    sections.forEach(function (section) {
-
-        section.classList.remove(
-            "active"
-        );
-
-    });
-
-
-    const selectedSection =
-        document.getElementById(
-            sectionName
-        );
-
-
-    if (selectedSection) {
-
-        selectedSection.classList.add(
-            "active"
-        );
-
-    }
-
-
-    const sidebarLinks =
-        document.querySelectorAll(
-            ".sidebar-link[data-section]"
-        );
-
-
-    sidebarLinks.forEach(function (link) {
-
-        link.classList.remove(
-            "active"
-        );
-
-
-        if (
-            link.dataset.section ===
-            sectionName
-        ) {
-
-            link.classList.add(
-                "active"
-            );
-
-        }
-
-    });
-
-
-    const mobileLinks =
-        document.querySelectorAll(
-            ".mobile-nav-button[data-section]"
-        );
-
-
-    mobileLinks.forEach(function (link) {
-
-        link.classList.remove(
-            "active"
-        );
-
-
-        if (
-            link.dataset.section ===
-            sectionName
-        ) {
-
-            link.classList.add(
-                "active"
-            );
-
-        }
-
-    });
-
-
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
-
-}
-
-
-/* =========================================
-   LOGOUT
-========================================= */
-
-async function logoutStudent() {
-
-    const confirmed =
-        confirm(
-            "Are you sure you want to logout?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    const {
-        error
-    } = await supabaseClient.auth.signOut();
-
-
-    if (error) {
-
-        console.error(
-            "Logout error:",
-            error
-        );
-
-        alert(
-            "Unable to logout. Please try again."
-        );
-
-        return;
-
-    }
-
-
-    window.location.href =
-        "student-login.html";
-
-}
-
-
-/* =========================================
-   CURRENT DATE
-========================================= */
-
-function updateDate() {
-
-    const dateElement =
-        document.getElementById(
-            "currentDate"
-        );
-
-
-    if (!dateElement) {
-        return;
-    }
-
-
-    const today =
-        new Date();
-
-
-    dateElement.textContent =
-        today.toLocaleDateString(
-            "en-IN",
-            {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-                year: "numeric"
+            .welcome-card h3 {
+                font-size: 18px;
             }
-        );
 
-}
+            .welcome-emoji {
+                font-size: 45px;
+            }
+
+            .stats-grid {
+                grid-template-columns:
+                    repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-value {
+                font-size: 21px;
+            }
+
+            .achievement-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-card {
+                grid-template-columns: 1fr;
+            }
+
+            .large-avatar {
+                margin: 0 auto;
+            }
+
+            .profile-details {
+                grid-template-columns: 1fr;
+            }
+
+            .mobile-bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 66px;
+                background: #ffffff;
+                border-top: 1px solid #e3edf5;
+                z-index: 200;
+                justify-content: space-around;
+                align-items: center;
+                padding: 5px;
+            }
+
+            .mobile-nav-button {
+                border: none;
+                background: transparent;
+                color: #7b90a0;
+                font-size: 9px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                cursor: pointer;
+                padding: 7px 12px;
+                border-radius: 10px;
+            }
+
+            .mobile-nav-button span {
+                font-size: 18px;
+            }
+
+            .mobile-nav-button.active {
+                color: #2878bd;
+                background: #eef7ff;
+            }
+
+        }
+
+        @media (max-width: 420px) {
+
+            .notification-button {
+                display: none;
+            }
+
+            .brand-text h1 {
+                font-size: 14px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stat-label {
+                font-size: 10px;
+            }
+
+            .stat-value {
+                font-size: 19px;
+            }
+
+        }
+
+    </style>
+
+</head>
 
 
-updateDate();
+<body>
 
 
-/* =========================================
-   START DASHBOARD
-========================================= */
+    <!-- =========================================
+         HEADER
+    ========================================== -->
 
-loadStudentDashboard();
+    <header class="dashboard-header">
 
-</script>
+        <div class="dashboard-brand">
 
-</body>
-</html>
+            <div class="brand-logo">
+                🎓
+            </div>
+
+            <div class="brand-text">
+
+                <h1>ZP High School</h1>
+
+                <p>Chavitipalem Student Portal</p>
+
+            </div>
+
+        </div>
+
+
+        <div class="header-right">
+
+            <button
+                class="notification-button"
+                onclick="showSection('notices')"
+                aria-label="Notifications"
+            >
+
+                🔔
+
+                <span class="notification-dot"></span>
+
+            </button>
+
+
+            <div class="student-mini-profile">
+
+                <div class="student-avatar">
+                    👤
+                </div>
+
+                <div>
+
+                    <div class="student-mini-name">
+                        Student Name
+                    </div>
+
+                    <div class="student-mini-class">
+                        Class 10 • A
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================================
+         DASHBOARD LAYOUT
+    ========================================== -->
+
+    <div class="dashboard-layout">
+
+
+        <!-- =====================================
+             SIDEBAR
+        ====================================== -->
+
+        <aside class="dashboard-sidebar">
+
+            <p class="sidebar-title">
+                Student Portal
+            </p>
+
+
+            <nav class="sidebar-menu">
+
+                <button
+                    class="sidebar-link active"
+                    data-section="overview"
+                    onclick="showSection('overview')"
+                >
+
+                    <span class="sidebar-icon">🏠</span>
+
+                    Dashboard
+
+                </button>
+
+
+                <button
+                    class="sidebar-link"
+                    data-section="profile"
+                    onclick="showSection('profile')"
+                >
+
+                    <span class="sidebar-icon">👤</span>
+
+                    My Profile
+
+                </button>
+
+
+                <button
+                    class="sidebar-link"
+                    data-section="results"
+                    onclick="showSection('results')"
+                >
+
+                    <span class="sidebar-icon">📊</span>
+
+                    Results
+
+                </button>
+
+
+                <button
+                    class="sidebar-link"
+                    data-section="attendance"
+                    onclick="showSection('attendance')"
+                >
+
+                    <span class="sidebar-icon">📅</span>
+
+                    Attendance
+
+                </button>
+
+
+                <button
+                    class="sidebar-link"
+                    data-section="notices"
+                    onclick="showSection('notices')"
+                >
+
+                    <span class="sidebar-icon">📢</span>
+
+                    Notices
+
+                </button>
+
+
+                <button
+                    class="sidebar-link"
+                    data-section="achievements"
+                    onclick="showSection('achievements')"
+                >
+
+                    <span class="sidebar-icon">🏆</span>
+
+                    Achievements
+
+                </button>
+
+
+                <button
+                    class="sidebar-link"
+                    data-section="events"
+                    onclick="showSection('events')"
+                >
+
+                    <span class="sidebar-icon">🎉</span>
+
+                    Events
+
+                </button>
+
+
+                <button
+                    class="sidebar-link"
+                    data-section="password"
+                    onclick="showSection('password')"
+                >
+
+                    <span class="sidebar-icon">🔐</span>
+
+                    Change Password
+
+                </button>
+
+            </nav>
+
+
+            <div class="sidebar-bottom">
+
+                <button
+                    class="sidebar-link logout-button"
+                    onclick="logoutStudent()"
+                >
+
+                    <span class="sidebar-icon">🚪</span>
+
+                    Logout
+
+                </button>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =====================================
+             MAIN CONTENT
+        ====================================== -->
+
+        <main class="dashboard-main">
+
+
+            <!-- =================================
+                 OVERVIEW
+            ================================== -->
+
+            <section
+                id="overview"
+                class="dashboard-section active"
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <h2>Dashboard</h2>
+
+                        <p>
+                            Welcome back! Here's your school
+                            information at a glance.
+                        </p>
+
+                    </div>
+
+                    <div
+                        class="date-badge"
+                        id="currentDate"
+                    >
+                        Today
+                    </div>
+
+                </div>
+
+
+                <div class="welcome-card">
+
+                    <div>
+
+                        <h3>
+                            Good morning, Student! 👋
+                        </h3>
+
+                        <p>
+                            Stay updated with your classes,
+                            results and school activities.
+                        </p>
+
+                    </div>
+
+                    <div class="welcome-emoji">
+                        🎓
+                    </div>
+
+                </div>
+
+
+                <!-- STATISTICS -->
+
+                <div class="stats-grid">
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <div class="stat-icon">
+                                📊
+                            </div>
+
+                        </div>
+
+                        <div class="stat-label">
+                            Overall Result
+                        </div>
+
+                        <div class="stat-value">
+                            82%
+                        </div>
+
+                        <div class="stat-small">
+                            Latest examination
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <div class="stat-icon">
+                                📅
+                            </div>
+
+                        </div>
+
+                        <div class="stat-label">
+                            Attendance
+                        </div>
+
+                        <div class="stat-value">
+                            87.8%
+                        </div>
+
+                        <div class="stat-small">
+                            This academic year
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <div class="stat-icon">
+                                🏆
+                            </div>
+
+                        </div>
+
+                        <div class="stat-label">
+                            Achievements
+                        </div>
+
+                        <div class="stat-value">
+                            4
+                        </div>
+
+                        <div class="stat-small">
+                            School records
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <div class="stat-icon">
+                                📢
+                            </div>
+
+                        </div>
+
+                        <div class="stat-label">
+                            New Notices
+                        </div>
+
+                        <div class="stat-value">
+                            3
+                        </div>
+
+                        <div class="stat-small">
+                            Awaiting your attention
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- DASHBOARD COLUMNS -->
+
+                <div class="dashboard-grid">
+
+
+                    <div>
+
+                        <!-- NOTICES -->
+
+                        <div class="dashboard-card">
+
+                            <div class="card-heading">
+
+                                <h3>
+                                    Latest Notices
+                                </h3>
+
+                                <button
+                                    class="view-all"
+                                    onclick="showSection('notices')"
+                                >
+                                    View all
+                                </button>
+
+                            </div>
+
+
+                            <div class="notice-item">
+
+                                <div class="notice-date">
+
+                                    <strong>18</strong>
+
+                                    <span>Sep</span>
+
+                                </div>
+
+                                <div class="notice-content">
+
+                                    <h4>
+                                        Unit Test Examination Schedule
+                                    </h4>
+
+                                    <p>
+                                        Students are requested to
+                                        check the examination schedule.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="notice-item">
+
+                                <div class="notice-date">
+
+                                    <strong>15</strong>
+
+                                    <span>Sep</span>
+
+                                </div>
+
+                                <div class="notice-content">
+
+                                    <h4>
+                                        School Assembly Notice
+                                    </h4>
+
+                                    <p>
+                                        Regular morning assembly
+                                        will begin at 9:00 AM.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="notice-item">
+
+                                <div class="notice-date">
+
+                                    <strong>12</strong>
+
+                                    <span>Sep</span>
+
+                                </div>
+
+                                <div class="notice-content">
+
+                                    <h4>
+                                        Sports Practice
+                                    </h4>
+
+                                    <p>
+                                        Students selected for sports
+                                        practice should report to the
+                                        ground.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- UPCOMING EVENTS -->
+
+                        <div class="dashboard-card">
+
+                            <div class="card-heading">
+
+                                <h3>
+                                    Upcoming Events
+                                </h3>
+
+                                <button
+                                    class="view-all"
+                                    onclick="showSection('events')"
+                                >
+                                    View all
+                                </button>
+
+                            </div>
+
+
+                            <div class="event-item">
+
+                                <div class="event-date">
+
+                                    <strong>25</strong>
+
+                                    <span>Sep</span>
+
+                                </div>
+
+                                <div>
+
+                                    <h4>
+                                        School Sports Day
+                                    </h4>
+
+                                    <p>
+                                        School 
+                                      Ground • 9:00 AM
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="event-item">
+
+                                <div class="event-date">
+
+                                    <strong>02</strong>
+
+                                    <span>Oct</span>
+
+                                </div>
+
+                                <div>
+
+                                    <h4>
+                                        Gandhi Jayanti Programme
+                                    </h4>
+
+                                    <p>
+                                        School Auditorium • 10:00 AM
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ATTENDANCE -->
+
+                    <div>
+
+                        <div class="dashboard-card">
+
+                            <div class="card-heading">
+
+                                <h3>
+                                    Attendance
+                                </h3>
+
+                                <button
+                                    class="view-all"
+                                    onclick="showSection('attendance')"
+                                >
+                                    Details
+                                </button>
+
+                            </div>
+
+
+                            <div class="attendance-box">
+
+                                <div class="attendance-circle">
+
+                                    <div class="attendance-inner">
+
+                                        <strong>
+                                            87.8%
+                                        </strong>
+
+                                        <span>
+                                            Overall
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+
+                                <div class="attendance-info">
+
+                                    <div>
+
+                                        <strong>158</strong>
+
+                                        <span>Present</span>
+
+                                    </div>
+
+                                    <div>
+
+                                        <strong>22</strong>
+
+                                        <span>Absent</span>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- QUICK INFO -->
+
+                        <div class="dashboard-card">
+
+                            <div class="card-heading">
+
+                                <h3>
+                                    Student Information
+                                </h3>
+                            </div>
+
+                            <div class="profile-field">
+
+                                <span>
+                                    STUDENT ID
+                                </span>
+
+                                <strong>
+                                    ZPHS001
+                                </strong>
+
+                            </div>
+
+                            <br>
+
+                            <div class="profile-field">
+
+                                <span>
+                                    CLASS & SECTION
+                                </span>
+
+                                <strong>
+                                    10th Class • A
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================
+                 PROFILE
+            ================================== -->
+
+            <section
+                id="profile"
+                class="dashboard-section"
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <h2>My Profile</h2>
+
+                        <p>
+                            View your registered student information.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="dashboard-card">
+
+                    <div class="profile-card">
+
+                        <div class="large-avatar">
+                            👤
+                        </div>
+
+
+                        <div class="profile-details">
+
+                            <div class="profile-field">
+
+                                <span>
+                                    FULL NAME
+                                </span>
+
+                                <strong>
+                                    Student Name
+                                </strong>
+
+                            </div>
+
+
+                            <div class="profile-field">
+
+                                <span>
+                                    ROLL NUMBER
+                                </span>
+
+                                <strong>
+                                    ZPHS001
+                                </strong>
+
+                            </div>
+
+
+                            <div class="profile-field">
+
+                                <span>
+                                    CLASS
+                                </span>
+
+                                <strong>
+                                    10th Class
+                                </strong>
+
+                            </div>
+
+
+                            <div class="profile-field">
+
+                                <span>
+                                    SECTION
+                                </span>
+
+                                <strong>
+                                    A
+                                </strong>
+
+                            </div>
+
+
+                            <div class="profile-field">
+
+                                <span>
+                                    DATE OF BIRTH
+                                </span>
+
+                                <strong>
+                                    DD / MM / YYYY
+                                </strong>
+
+                            </div>
+
+
+                            <div class="profile-field">
+
+                                <span>
+                                    ACADEMIC YEAR
+                                </span>
+
+                                <strong>
+                                    2026 - 2027
+                                </strong>
+
+                            </div>
+
+
+                            <div class="profile-field">
+
+                                <span>
+                                    PARENT / GUARDIAN
+                                </span>
+
+                                <strong>
+                                    Parent Name
+                                </strong>
+
+                            </div>
+
+
+                            <div class="profile-field">
+
+                                <span>
+                                    STATUS
+                                </span>
+
+                                <strong>
+                                    Active Student
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+          
